@@ -5,6 +5,7 @@ import { PlusCircle } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ProjectSidebarProps {
   projects: Project[];
@@ -22,6 +23,7 @@ const ProjectSidebar = ({
   const [newProjectName, setNewProjectName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const handleAddProject = () => {
     if (newProjectName.trim()) {
@@ -35,8 +37,12 @@ const ProjectSidebar = ({
     }
   };
 
+  const baseClasses = isMobile
+    ? "w-full bg-background/90 backdrop-blur-sm overflow-y-auto"
+    : "w-64 h-[calc(100vh-4rem)] border-r border-border bg-background/90 backdrop-blur-sm overflow-y-auto";
+
   return (
-    <aside className="w-64 h-[calc(100vh-4rem)] border-r border-border bg-background/90 backdrop-blur-sm overflow-y-auto">
+    <aside className={baseClasses}>
       <div className="p-4">
         <h2 className="text-lg font-lora mb-4 text-foreground">Projects</h2>
         

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Clock } from "lucide-react";
 import Tag from "./Tag";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface HighPrioritySidebarProps {
   notes: Note[];
@@ -11,6 +12,8 @@ interface HighPrioritySidebarProps {
 }
 
 const HighPrioritySidebar = ({ notes, onToggleComplete }: HighPrioritySidebarProps) => {
+  const isMobile = useIsMobile();
+  
   // Filter only high priority notes across all projects
   const highPriorityNotes = notes
     .filter(note => note.priority === "high")
@@ -23,8 +26,12 @@ const HighPrioritySidebar = ({ notes, onToggleComplete }: HighPrioritySidebarPro
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
+  const baseClasses = isMobile
+    ? "w-full bg-background/90 backdrop-blur-sm overflow-y-auto"
+    : "w-64 h-[calc(100vh-4rem)] border-l border-border bg-background/90 backdrop-blur-sm overflow-y-auto";
+
   return (
-    <aside className="w-64 h-[calc(100vh-4rem)] border-l border-border bg-background/90 backdrop-blur-sm overflow-y-auto">
+    <aside className={baseClasses}>
       <div className="p-4">
         <h2 className="text-lg font-lora mb-4 flex items-center gap-2">
           <Badge className="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
