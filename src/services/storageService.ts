@@ -30,3 +30,15 @@ export const loadNotes = (): Note[] => {
 export const getNotesForProject = (notes: Note[], projectId: string): Note[] => {
   return notes.filter(note => note.projectId === projectId);
 };
+
+export const deleteNotesForProject = (projectId: string): Note[] => {
+  try {
+    const notes = loadNotes();
+    const updatedNotes = notes.filter(note => note.projectId !== projectId);
+    saveNotes(updatedNotes);
+    return updatedNotes;
+  } catch (error) {
+    console.error('Error deleting notes for project', error);
+    return loadNotes();
+  }
+};

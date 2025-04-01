@@ -37,6 +37,22 @@ export const loadProjects = (): Project[] => {
   }
 };
 
+export const deleteProject = (projectId: string): Project[] => {
+  try {
+    // Don't allow deletion of the default project
+    if (projectId === DEFAULT_PROJECT_ID) {
+      return loadProjects();
+    }
+    
+    const projects = loadProjects().filter(project => project.id !== projectId);
+    saveProjects(projects);
+    return projects;
+  } catch (error) {
+    console.error('Error deleting project from localStorage', error);
+    return loadProjects();
+  }
+};
+
 export const getDefaultProjectId = (): string => {
   return DEFAULT_PROJECT_ID;
 };
