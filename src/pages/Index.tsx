@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import NoteForm from "@/components/NoteForm";
 import NoteCard from "@/components/NoteCard";
 import TagFilter from "@/components/TagFilter";
 import ProjectSidebar from "@/components/ProjectSidebar";
-import AnimatedHeader from "@/components/AnimatedHeader";
+import HighPrioritySidebar from "@/components/HighPrioritySidebar";
 import { Note, PriorityType, Project } from "@/types";
 import { saveNotes, loadNotes, getNotesForProject } from "@/services/storageService";
 import { initializeProjects, saveProjects, getDefaultProjectId } from "@/services/projectService";
@@ -25,7 +24,6 @@ const Index = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagSearch, setTagSearch] = useState("");
 
-  // Load projects and notes from localStorage on mount
   useEffect(() => {
     const savedProjects = initializeProjects();
     setProjects(savedProjects);
@@ -34,12 +32,10 @@ const Index = () => {
     setNotes(savedNotes);
   }, []);
 
-  // Save notes to localStorage whenever they change
   useEffect(() => {
     saveNotes(notes);
   }, [notes]);
 
-  // Save projects to localStorage whenever they change
   useEffect(() => {
     saveProjects(projects);
   }, [projects]);
@@ -105,36 +101,29 @@ const Index = () => {
     setTagSearch("");
   };
 
-  // Filter notes by the active project
   const projectNotes = getNotesForProject(notes, activeProjectId);
 
-  // Get all unique tags from this project's notes
   const allTags = Array.from(
     new Set(projectNotes.flatMap(note => note.tags))
   );
 
-  // Filter tags by search term
   const filteredTags = tagSearch.trim() 
     ? allTags.filter(tag => tag.toLowerCase().includes(tagSearch.toLowerCase()))
     : allTags;
 
-  // Filter and sort notes
   const filteredNotes = projectNotes
     .filter(note => 
       selectedTags.length === 0 ||
       selectedTags.some(tag => note.tags.includes(tag))
     )
     .sort((a, b) => {
-      // First by priority
       const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
       if (priorityDiff !== 0) return priorityDiff;
       
-      // Then by completion status (incomplete first)
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
       }
       
-      // Then by creation date (newest first)
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
@@ -151,10 +140,7 @@ const Index = () => {
         />
 
         <main className="flex-1 container mx-auto px-4 py-8">
-          <div className="max-w-3xl mx-auto">
-            {/* Animated Header */}
-            <AnimatedHeader />
-            
+          <div className="max-w-3xl mx-auto">            
             <h2 className="text-2xl font-lora mb-6">
               {projects.find(p => p.id === activeProjectId)?.name || 'Notes'}
             </h2>
@@ -204,6 +190,11 @@ const Index = () => {
             </div>
           </div>
         </main>
+
+        <HighPrioritySidebar 
+          notes={notes} 
+          onToggleComplete={handleToggleComplete}
+        />
       </div>
     </div>
   );
