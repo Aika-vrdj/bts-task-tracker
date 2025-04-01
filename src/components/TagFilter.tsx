@@ -1,5 +1,4 @@
 
-import { Tag as TagType } from "@/types";
 import Tag from "./Tag";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,12 +16,15 @@ const TagFilter = ({
   onSelectTag, 
   onClearFilters 
 }: TagFilterProps) => {
-  if (availableTags.length === 0) return null;
+  if (availableTags.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground">No tags available</div>
+    );
+  }
 
   return (
-    <div className="paper p-4 mb-6 animate-fade-in">
+    <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-lora font-medium">Filter by tags</h2>
         {selectedTags.length > 0 && (
           <Button 
             variant="ghost" 
@@ -36,14 +38,18 @@ const TagFilter = ({
       </div>
       
       <div className="flex flex-wrap gap-2">
-        {availableTags.map(tag => (
-          <Tag 
-            key={tag} 
-            name={tag}
-            selected={selectedTags.includes(tag)}
-            onSelect={() => onSelectTag(tag)}
-          />
-        ))}
+        {availableTags.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No matching tags</div>
+        ) : (
+          availableTags.map(tag => (
+            <Tag 
+              key={tag} 
+              name={tag}
+              selected={selectedTags.includes(tag)}
+              onSelect={() => onSelectTag(tag)}
+            />
+          ))
+        )}
       </div>
     </div>
   );

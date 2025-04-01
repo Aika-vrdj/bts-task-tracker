@@ -2,6 +2,7 @@
 import ThemeToggle from './ThemeToggle';
 import Clock from './Clock';
 import { BookCheck } from 'lucide-react';
+import AnimatedHeader from './AnimatedHeader';
 
 const Header = () => {
   return (

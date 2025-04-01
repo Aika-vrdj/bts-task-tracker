@@ -7,6 +7,7 @@ export interface Note {
   priority: 'low' | 'medium' | 'high';
   tags: string[];
   createdAt: string;
+  projectId: string; // Added projectId field
 }
 
 export type PriorityType = 'low' | 'medium' | 'high';
@@ -14,4 +15,10 @@ export type PriorityType = 'low' | 'medium' | 'high';
 export interface Tag {
   id: string;
   name: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  createdAt: string;
 }
