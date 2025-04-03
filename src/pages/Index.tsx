@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import NoteForm from "@/components/NoteForm";
@@ -7,8 +6,8 @@ import TagFilter from "@/components/TagFilter";
 import ProjectSidebar from "@/components/ProjectSidebar";
 import HighPrioritySidebar from "@/components/HighPrioritySidebar";
 import { Note, PriorityType, Project } from "@/types";
-import { saveNotes, loadNotes, getNotesForProject } from "@/services/storageService";
-import { initializeProjects, saveProjects, getDefaultProjectId } from "@/services/projectService";
+import { saveNotes, loadNotes, getNotesForProject, deleteNotesForProject } from "@/services/storageService";
+import { initializeProjects, saveProjects, getDefaultProjectId, deleteProject } from "@/services/projectService";
 import { Input } from "@/components/ui/input";
 import { Search, MenuIcon, AlertCircle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -55,6 +54,22 @@ const Index = () => {
 
     setProjects(prevProjects => [...prevProjects, newProject]);
     setActiveProjectId(newProject.id);
+    if (isMobile) {
+      setShowProjectDrawer(false);
+    }
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    const updatedNotes = deleteNotesForProject(projectId);
+    setNotes(updatedNotes);
+    
+    const updatedProjects = deleteProject(projectId);
+    setProjects(updatedProjects);
+    
+    if (projectId === activeProjectId) {
+      setActiveProjectId(getDefaultProjectId());
+    }
+    
     if (isMobile) {
       setShowProjectDrawer(false);
     }
@@ -138,7 +153,6 @@ const Index = () => {
 
   const highPriorityNotes = notes.filter(note => note.priority === "high").length;
 
-  // Render sidebar content based on device type
   const renderContent = () => {
     if (isMobile) {
       return (
@@ -163,6 +177,7 @@ const Index = () => {
                       setShowProjectDrawer(false);
                     }}
                     onAddProject={handleAddProject}
+                    onDeleteProject={handleDeleteProject}
                   />
                 </div>
               </DrawerContent>
@@ -235,7 +250,6 @@ const Index = () => {
       );
     }
     
-    // Desktop layout
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -246,6 +260,7 @@ const Index = () => {
             activeProjectId={activeProjectId}
             onSelectProject={setActiveProjectId}
             onAddProject={handleAddProject}
+            onDeleteProject={handleDeleteProject}
           />
   
           <main className="flex-1 container mx-auto px-4 py-8">
