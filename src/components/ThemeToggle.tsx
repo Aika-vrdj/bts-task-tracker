@@ -1,12 +1,18 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Terminal } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const ThemeToggle = () => {
+  const { toast } = useToast();
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const storedTheme = localStorage.getItem('theme');
-    return storedTheme === 'dark' ? 'dark' : 'light';
+    // Default to dark mode for the cyberpunk theme
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
+      const storedTheme = localStorage.getItem('theme');
+      return storedTheme === 'light' ? 'light' : 'dark';
+    }
+    return 'dark';
   });
   
   useEffect(() => {
@@ -22,7 +28,16 @@ const ThemeToggle = () => {
   }, [theme]);
   
   const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    
+    toast({
+      title: newTheme === 'dark' ? "Terminal mode activated" : "Standard mode activated",
+      description: newTheme === 'dark' 
+        ? "Welcome to the cyberpunk interface, hacker" 
+        : "Reverting to standard visual parameters",
+      duration: 2000,
+    });
   };
   
   return (
@@ -30,9 +45,14 @@ const ThemeToggle = () => {
       variant="ghost" 
       size="icon" 
       onClick={toggleTheme}
-      className="rounded-full w-9 h-9 transition-all hover:bg-secondary"
+      className="rounded-full w-9 h-9 transition-all hover:bg-secondary dark:cyber-border dark:hover:cyber-glow"
+      title={theme === 'light' ? "Switch to dark mode" : "Switch to light mode"}
     >
-      {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+      {theme === 'light' ? (
+        <Terminal className="text-primary" size={20} />
+      ) : (
+        <Sun className="text-neon-cyan" size={20} />
+      )}
     </Button>
   );
 };

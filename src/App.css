@@ -1,3 +1,4 @@
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -5,6 +6,7 @@
   text-align: center;
 }
 
+/* These styles are kept for compatibility but many are overridden by our tailwind setup */
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -39,4 +41,12 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Cyberpunk mode specific */
+.dark .logo:hover {
+  filter: drop-shadow(0 0 2em #1EAEDB);
+}
+.dark .logo.react:hover {
+  filter: drop-shadow(0 0 2em #8B5CF6);
 }
