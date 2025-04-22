@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Search, MenuIcon, AlertCircle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import Footer from "@/components/Footer";
 
 const priorityOrder = {
   high: 0,
@@ -246,6 +247,8 @@ const Index = () => {
               )}
             </div>
           </main>
+          
+          <Footer />
         </>
       );
     }
@@ -320,6 +323,8 @@ const Index = () => {
             onToggleComplete={handleToggleComplete}
           />
         </div>
+        
+        <Footer />
       </div>
     );
   };
