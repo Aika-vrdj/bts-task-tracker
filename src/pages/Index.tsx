@@ -6,19 +6,40 @@ import TagFilter from "@/components/TagFilter";
 import ProjectSidebar from "@/components/ProjectSidebar";
 import HighPrioritySidebar from "@/components/HighPrioritySidebar";
 import { Note, PriorityType, Project } from "@/types";
-import { saveNotes, loadNotes, getNotesForProject, deleteNotesForProject } from "@/services/storageService";
-import { initializeProjects, saveProjects, getDefaultProjectId, deleteProject } from "@/services/projectService";
+import {
+  saveNotes,
+  loadNotes,
+  getNotesForProject,
+  deleteNotesForProject,
+  getNextNoteOrder,
+  reorderNotesInProject,
+} from "@/services/storageService";
+import {
+  initializeProjects,
+  saveProjects,
+  getDefaultProjectId,
+  deleteProject,
+  getNextProjectOrder,
+  reorderProjects,
+} from "@/services/projectService";
 import { Input } from "@/components/ui/input";
 import { Search, MenuIcon, AlertCircle } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import Footer from "@/components/Footer";
-
-const priorityOrder = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 
 const Index = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -29,6 +50,10 @@ const Index = () => {
   const [showProjectDrawer, setShowProjectDrawer] = useState(false);
   const [showPriorityDrawer, setShowPriorityDrawer] = useState(false);
   const isMobile = useIsMobile();
+
+  const noteSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   useEffect(() => {
     const savedProjects = initializeProjects();
@@ -51,6 +76,7 @@ const Index = () => {
       id: crypto.randomUUID(),
       name: projectName,
       createdAt: new Date().toISOString(),
+      order: getNextProjectOrder(projects),
     };
 
     setProjects(prevProjects => [...prevProjects, newProject]);
@@ -76,6 +102,10 @@ const Index = () => {
     }
   };
 
+  const handleReorderProjects = (orderedIds: string[]) => {
+    setProjects(prevProjects => reorderProjects(prevProjects, orderedIds));
+  };
+
   const handleAddNote = ({ 
     title, 
     content, 
@@ -96,9 +126,21 @@ const Index = () => {
       tags,
       projectId: activeProjectId,
       createdAt: new Date().toISOString(),
+      order: getNextNoteOrder(notes, activeProjectId),
     };
 
     setNotes(prevNotes => [...prevNotes, newNote]);
+  };
+
+  const handleEditNote = (id: string, updates: {
+    title: string;
+    content: string;
+    priority: PriorityType;
+    tags: string[];
+  }) => {
+    setNotes(prevNotes => prevNotes.map(note =>
+      note.id === id ? { ...note, ...updates } : note
+    ));
   };
 
   const handleToggleComplete = (id: string) => {
@@ -136,23 +178,81 @@ const Index = () => {
     ? allTags.filter(tag => tag.toLowerCase().includes(tagSearch.toLowerCase()))
     : allTags;
 
+  // Manual drag order is now the primary sort, with completed tasks sinking to the
+  // bottom. Priority is still visible on each card and has its own dedicated view
+  // in the High Priority sidebar.
   const filteredNotes = projectNotes
     .filter(note => 
       selectedTags.length === 0 ||
       selectedTags.some(tag => note.tags.includes(tag))
     )
     .sort((a, b) => {
-      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
-      if (priorityDiff !== 0) return priorityDiff;
-      
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
       }
-      
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return a.order - b.order;
     });
 
+  // Reordering only makes sense against the full, unfiltered manual order for the
+  // project, so drag-and-drop is disabled while a tag filter is active.
+  const isReorderable = selectedTags.length === 0;
+
   const highPriorityNotes = notes.filter(note => note.priority === "high").length;
+
+  const handleNotesDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = filteredNotes.findIndex(note => note.id === active.id);
+    const newIndex = filteredNotes.findIndex(note => note.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(filteredNotes, oldIndex, newIndex);
+    const newOrderIds = reordered.map(note => note.id);
+
+    setNotes(prevNotes => reorderNotesInProject(prevNotes, activeProjectId, newOrderIds));
+  };
+
+  const renderNotesList = () => {
+    if (filteredNotes.length === 0) {
+      return (
+        <div className="paper p-8 text-center">
+          <p className="text-muted-foreground font-lora">
+            {projectNotes.length === 0 
+              ? "No notes yet. Add your first note above!" 
+              : "No notes match your filter. Try clearing filters or add a new note."}
+          </p>
+        </div>
+      );
+    }
+
+    const noteCards = filteredNotes.map(note => (
+      <NoteCard 
+        key={note.id} 
+        note={note} 
+        onToggleComplete={handleToggleComplete}
+        onDelete={handleDeleteNote}
+        onEditNote={handleEditNote}
+        dragDisabled={!isReorderable}
+      />
+    ));
+
+    if (!isReorderable) {
+      return noteCards;
+    }
+
+    return (
+      <DndContext
+        sensors={noteSensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleNotesDragEnd}
+      >
+        <SortableContext items={filteredNotes.map(note => note.id)} strategy={verticalListSortingStrategy}>
+          {noteCards}
+        </SortableContext>
+      </DndContext>
+    );
+  };
 
   const renderContent = () => {
     if (isMobile) {
@@ -179,6 +279,7 @@ const Index = () => {
                     }}
                     onAddProject={handleAddProject}
                     onDeleteProject={handleDeleteProject}
+                    onReorderProjects={handleReorderProjects}
                   />
                 </div>
               </DrawerContent>
@@ -224,27 +325,16 @@ const Index = () => {
                 onSelectTag={handleSelectTag}
                 onClearFilters={handleClearFilters}
               />
+
+              {!isReorderable && (
+                <p className="text-xs text-muted-foreground mt-3 italic">
+                  Clear filters to drag and reorder tasks.
+                </p>
+              )}
             </div>
             
             <div className="space-y-4 mb-20">
-              {filteredNotes.length === 0 ? (
-                <div className="paper p-8 text-center">
-                  <p className="text-muted-foreground font-lora">
-                    {projectNotes.length === 0 
-                      ? "No notes yet. Add your first note above!" 
-                      : "No notes match your filter. Try clearing filters or add a new note."}
-                  </p>
-                </div>
-              ) : (
-                filteredNotes.map(note => (
-                  <NoteCard 
-                    key={note.id} 
-                    note={note} 
-                    onToggleComplete={handleToggleComplete}
-                    onDelete={handleDeleteNote}
-                  />
-                ))
-              )}
+              {renderNotesList()}
             </div>
           </main>
           
@@ -264,6 +354,7 @@ const Index = () => {
             onSelectProject={setActiveProjectId}
             onAddProject={handleAddProject}
             onDeleteProject={handleDeleteProject}
+            onReorderProjects={handleReorderProjects}
           />
   
           <main className="flex-1 container mx-auto px-4 py-8">
@@ -293,27 +384,16 @@ const Index = () => {
                   onSelectTag={handleSelectTag}
                   onClearFilters={handleClearFilters}
                 />
+
+                {!isReorderable && (
+                  <p className="text-xs text-muted-foreground mt-3 italic">
+                    Clear filters to drag and reorder tasks.
+                  </p>
+                )}
               </div>
               
               <div className="space-y-4">
-                {filteredNotes.length === 0 ? (
-                  <div className="paper p-8 text-center">
-                    <p className="text-muted-foreground font-lora">
-                      {projectNotes.length === 0 
-                        ? "No notes yet. Add your first note above!" 
-                        : "No notes match your filter. Try clearing filters or add a new note."}
-                    </p>
-                  </div>
-                ) : (
-                  filteredNotes.map(note => (
-                    <NoteCard 
-                      key={note.id} 
-                      note={note} 
-                      onToggleComplete={handleToggleComplete}
-                      onDelete={handleDeleteNote}
-                    />
-                  ))
-                )}
+                {renderNotesList()}
               </div>
             </div>
           </main>
@@ -331,5 +411,3 @@ const Index = () => {
 
   return renderContent();
 };
-
-export default Index;
