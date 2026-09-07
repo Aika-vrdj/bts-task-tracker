@@ -1,4 +1,3 @@
-
 import { Project } from "@/types";
 
 const STORAGE_KEY = 'retro-notes-app-projects';
@@ -11,7 +10,8 @@ export const initializeProjects = (): Project[] => {
     const defaultProject: Project = {
       id: DEFAULT_PROJECT_ID,
       name: 'Personal Notes',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      order: 0,
     };
     saveProjects([defaultProject]);
     return [defaultProject];
@@ -30,11 +30,35 @@ export const saveProjects = (projects: Project[]): void => {
 export const loadProjects = (): Project[] => {
   try {
     const projectsJSON = localStorage.getItem(STORAGE_KEY);
-    return projectsJSON ? JSON.parse(projectsJSON) : [];
+    const projects: Project[] = projectsJSON ? JSON.parse(projectsJSON) : [];
+    
+    // Fall back to existing array position for projects saved before ordering existed
+    return projects
+      .map((project, index) => ({
+        ...project,
+        order: typeof project.order === 'number' ? project.order : index,
+      }))
+      .sort((a, b) => a.order - b.order);
   } catch (error) {
     console.error('Error loading projects from localStorage', error);
     return [];
   }
+};
+
+export const getNextProjectOrder = (projects: Project[]): number => {
+  if (projects.length === 0) return 0;
+  return Math.max(...projects.map(project => project.order)) + 1;
+};
+
+// Reassigns order values (0..n-1) based on the drag-and-drop result.
+export const reorderProjects = (projects: Project[], orderedIds: string[]): Project[] => {
+  const projectById = new Map(projects.map(project => [project.id, project]));
+  return orderedIds
+    .map((id, index) => {
+      const project = projectById.get(id);
+      return project ? { ...project, order: index } : null;
+    })
+    .filter((project): project is Project => project !== null);
 };
 
 export const deleteProject = (projectId: string): Project[] => {
