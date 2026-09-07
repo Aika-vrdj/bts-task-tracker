@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Project } from '@/types';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, GripVertical } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +15,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ProjectSidebarProps {
   projects: Project[];
@@ -23,20 +37,81 @@ interface ProjectSidebarProps {
   onSelectProject: (projectId: string) => void;
   onAddProject: (projectName: string) => void;
   onDeleteProject?: (projectId: string) => void;
+  onReorderProjects?: (orderedIds: string[]) => void;
 }
+
+interface ProjectItemProps {
+  project: Project;
+  isActive: boolean;
+  onSelect: () => void;
+  onDeleteClick?: (e: React.MouseEvent) => void;
+}
+
+const ProjectItem = ({ project, isActive, onSelect, onDeleteClick }: ProjectItemProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: project.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center">
+      <button
+        type="button"
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none px-1"
+        aria-label="Drag to reorder project"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={16} />
+      </button>
+
+      <button
+        onClick={onSelect}
+        className={`flex-grow text-left p-2 rounded-md transition-colors ${
+          isActive
+            ? 'bg-primary text-primary-foreground'
+            : 'hover:bg-secondary'
+        }`}
+      >
+        {project.name}
+      </button>
+      {onDeleteClick && project.id !== 'default' && (
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="ml-1 h-8 w-8 text-muted-foreground hover:text-destructive"
+          onClick={onDeleteClick}
+          title="Delete project"
+        >
+          <Trash2 size={16} />
+        </Button>
+      )}
+    </div>
+  );
+};
 
 const ProjectSidebar = ({ 
   projects, 
   activeProjectId, 
   onSelectProject, 
   onAddProject,
-  onDeleteProject
+  onDeleteProject,
+  onReorderProjects,
 }: ProjectSidebarProps) => {
   const [newProjectName, setNewProjectName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   const handleAddProject = () => {
     if (newProjectName.trim()) {
@@ -68,6 +143,18 @@ const ProjectSidebar = ({
     setProjectToDelete(projectId);
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorderProjects) return;
+
+    const oldIndex = projects.findIndex(p => p.id === active.id);
+    const newIndex = projects.findIndex(p => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(projects, oldIndex, newIndex);
+    onReorderProjects(reordered.map(p => p.id));
+  };
+
   const baseClasses = isMobile
     ? "w-full bg-background/90 backdrop-blur-sm overflow-y-auto"
     : "w-64 h-[calc(100vh-4rem)] border-r border-border bg-background/90 backdrop-blur-sm overflow-y-auto";
@@ -77,33 +164,21 @@ const ProjectSidebar = ({
       <div className="p-4">
         <h2 className="text-lg font-lora mb-4 text-foreground">Projects</h2>
         
-        <div className="space-y-2">
-          {projects.map(project => (
-            <div key={project.id} className="flex items-center">
-              <button
-                onClick={() => onSelectProject(project.id)}
-                className={`flex-grow text-left p-2 rounded-md transition-colors ${
-                  project.id === activeProjectId
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-secondary'
-                }`}
-              >
-                {project.name}
-              </button>
-              {onDeleteProject && project.id !== 'default' && (
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  className="ml-1 h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={(e) => confirmDelete(project.id, e)}
-                  title="Delete project"
-                >
-                  <Trash2 size={16} />
-                </Button>
-              )}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={projects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {projects.map(project => (
+                <ProjectItem
+                  key={project.id}
+                  project={project}
+                  isActive={project.id === activeProjectId}
+                  onSelect={() => onSelectProject(project.id)}
+                  onDeleteClick={onDeleteProject ? (e) => confirmDelete(project.id, e) : undefined}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
 
         {isAdding ? (
           <div className="mt-4 space-y-2">
@@ -163,5 +238,3 @@ const ProjectSidebar = ({
     </aside>
   );
 };
-
-export default ProjectSidebar;
